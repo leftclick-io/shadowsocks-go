@@ -22,6 +22,7 @@ import (
 var (
 	ErrEmptyUsername   = errors.New("empty username")
 	ErrNonexistentUser = errors.New("nonexistent user")
+	ErrRegisteredUser  = errors.New("user with that name is already registered")
 )
 
 // ManagedServer stores information about a server whose credentials are managed by the credential manager.
@@ -177,7 +178,7 @@ func (s *ManagedServer) AddCredential(username string, uPSK []byte) error {
 	s.mu.Lock()
 	if s.cachedCredMap[username] != nil {
 		s.mu.Unlock()
-		return fmt.Errorf("user %s already exists", username)
+		return fmt.Errorf("%w: %s", ErrRegisteredUser, username)
 	}
 	c, err := ss2022.NewServerUserCipherConfig(username, uPSK, s.udp != nil)
 	if err != nil {
