@@ -93,7 +93,7 @@ type UDPListenerConfig struct {
 }
 
 // Configure returns a UDP server socket configuration.
-func (lnc UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, transparent bool) (udpRelayServerConn, error) {
+func (lnc UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, minNATTimeout time.Duration, transparent bool) (udpRelayServerConn, error) {
 	switch lnc.Network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -104,15 +104,13 @@ func (lnc UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache,
 		return udpRelayServerConn{}, err
 	}
 
-	var natTimeout time.Duration
+	natTimeout := time.Duration(lnc.NATTimeoutSec) * time.Second
 
 	switch {
-	case lnc.NATTimeoutSec == 0:
+	case natTimeout == 0:
 		natTimeout = defaultNatTimeout
-	case lnc.NATTimeoutSec < minNatTimeoutSec:
-		return udpRelayServerConn{}, ErrNATTimeoutTooSmall
-	default:
-		natTimeout = time.Duration(lnc.NATTimeoutSec) * time.Second
+	case natTimeout < minNATTimeout:
+		return udpRelayServerConn{}, fmt.Errorf("NAT timeout %s is less than server's minimum NAT timeout %s", natTimeout, minNATTimeout)
 	}
 
 	return udpRelayServerConn{
@@ -185,6 +183,15 @@ type ServerConfig struct {
 
 	tcpEnabled bool
 	udpEnabled bool
+
+	// AllowSegmentedFixedLengthHeader disables the requirement that
+	// the fixed-length header must be read in a single read call.
+	//
+	// This option is useful when the underlying stream transport
+	// does not exhibit typical TCP behavior.
+	//
+	// Only applicable to Shadowsocks 2022 TCP.
+	AllowSegmentedFixedLengthHeader bool `json:"allowSegmentedFixedLengthHeader"`
 
 	// Shadowsocks
 
@@ -317,7 +324,7 @@ func (sc *ServerConfig) TCPRelay() (*TCPRelay, error) {
 			sc.logger.Warn("Unsafe stream prefix taints the server", zap.String("server", sc.Name))
 		}
 
-		s := ss2022.NewTCPServer(sc.userCipherConfig, sc.identityCipherConfig, sc.UnsafeRequestStreamPrefix, sc.UnsafeResponseStreamPrefix)
+		s := ss2022.NewTCPServer(sc.AllowSegmentedFixedLengthHeader, sc.userCipherConfig, sc.identityCipherConfig, sc.UnsafeRequestStreamPrefix, sc.UnsafeResponseStreamPrefix)
 		sc.tcpCredStore = &s.CredStore
 		server = s
 
@@ -366,6 +373,7 @@ func (sc *ServerConfig) UDPRelay(maxClientPackerHeadroom zerocopy.Headroom) (Rel
 		sessionServer               zerocopy.UDPSessionServer
 		serverUnpackerHeadroom      zerocopy.Headroom
 		transparentConnListenConfig conn.ListenConfig
+		minNATTimeout               time.Duration
 		err                         error
 		listenerTransparent         bool
 	)
@@ -408,7 +416,9 @@ func (sc *ServerConfig) UDPRelay(maxClientPackerHeadroom zerocopy.Headroom) (Rel
 	case "direct", "none", "plain", "socks5":
 		serverUnpackerHeadroom = natServer.Info().UnpackerHeadroom
 	case "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm":
-		serverUnpackerHeadroom = sessionServer.Info().UnpackerHeadroom
+		info := sessionServer.Info()
+		serverUnpackerHeadroom = info.UnpackerHeadroom
+		minNATTimeout = info.MinNATTimeout
 	}
 
 	packetBufHeadroom := zerocopy.UDPRelayHeadroom(maxClientPackerHeadroom, serverUnpackerHeadroom)
@@ -418,7 +428,7 @@ func (sc *ServerConfig) UDPRelay(maxClientPackerHeadroom zerocopy.Headroom) (Rel
 	listeners := make([]udpRelayServerConn, len(sc.UDPListeners))
 
 	for i := range listeners {
-		listeners[i], err = sc.UDPListeners[i].Configure(sc.listenConfigCache, listenerTransparent)
+		listeners[i], err = sc.UDPListeners[i].Configure(sc.listenConfigCache, minNATTimeout, listenerTransparent)
 		if err != nil {
 			return nil, err
 		}
