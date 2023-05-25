@@ -61,31 +61,27 @@ func main() {
 		zc.Level.SetLevel(l)
 	}
 
-	logger, err := zc.Build()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	logger := logging.NewZapLogger(zc)
 	defer logger.Sync()
 
-	if err = jsonhelper.LoadAndDecodeDisallowUnknownFields(*confPath, &sc); err != nil {
+	if err := jsonhelper.LoadAndDecodeDisallowUnknownFields(*confPath, &sc); err != nil {
 		logger.Fatal("Failed to load config",
-			zap.Stringp("confPath", confPath),
-			zap.Error(err),
+			logger.WithField("confPath", confPath),
+			logger.WithError(err),
 		)
 	}
 
 	m, err := sc.Manager(logger)
 	if err != nil {
 		logger.Fatal("Failed to create service manager",
-			zap.Stringp("confPath", confPath),
-			zap.Error(err),
+			logger.WithField("confPath", confPath),
+			logger.WithError(err),
 		)
 	}
 	defer m.Close()
 
 	if *testConf {
-		logger.Info("Config test OK", zap.Stringp("confPath", confPath))
+		logger.Info("Config test OK", logger.WithField("confPath", confPath))
 		return
 	}
 
@@ -95,14 +91,14 @@ func main() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		sig := <-sigCh
-		logger.Info("Received exit signal", zap.Stringer("signal", sig))
+		logger.Info("Received exit signal", logger.WithField("signal", sig))
 		cancel()
 	}()
 
 	if err = m.Start(ctx); err != nil {
 		logger.Fatal("Failed to start services",
-			zap.Stringp("confPath", confPath),
-			zap.Error(err),
+			logger.WithField("confPath", confPath),
+			logger.WithError(err),
 		)
 	}
 

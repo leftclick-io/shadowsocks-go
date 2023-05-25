@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/database64128/shadowsocks-go/conn"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 // ProxyClient implements the zerocopy TCPClient interface.
@@ -54,10 +54,10 @@ func (c *ProxyClient) Dial(ctx context.Context, targetAddr conn.Addr, payload []
 
 // ProxyServer implements the zerocopy TCPServer interface.
 type ProxyServer struct {
-	logger *zap.Logger
+	logger logging.Logger
 }
 
-func NewProxyServer(logger *zap.Logger) *ProxyServer {
+func NewProxyServer(logger logging.Logger) *ProxyServer {
 	return &ProxyServer{logger}
 }
 

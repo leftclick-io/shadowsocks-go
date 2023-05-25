@@ -11,11 +11,11 @@ import (
 	"github.com/database64128/shadowsocks-go/cred"
 	"github.com/database64128/shadowsocks-go/direct"
 	"github.com/database64128/shadowsocks-go/http"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/router"
 	"github.com/database64128/shadowsocks-go/ss2022"
 	"github.com/database64128/shadowsocks-go/stats"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 // ListenerConfig is the shared part of TCP listener and UDP server socket configurations.
@@ -213,12 +213,12 @@ type ServerConfig struct {
 	listenConfigCache conn.ListenConfigCache
 	collector         stats.Collector
 	router            *router.Router
-	logger            *zap.Logger
+	logger            logging.Logger
 	index             int
 }
 
 // Initialize initializes the server configuration.
-func (sc *ServerConfig) Initialize(listenConfigCache conn.ListenConfigCache, collector stats.Collector, router *router.Router, logger *zap.Logger, index int) error {
+func (sc *ServerConfig) Initialize(listenConfigCache conn.ListenConfigCache, collector stats.Collector, router *router.Router, logger logging.Logger, index int) error {
 	sc.tcpEnabled = sc.EnableTCP || len(sc.TCPListeners) > 0
 	sc.udpEnabled = sc.EnableUDP || len(sc.UDPListeners) > 0
 
@@ -321,7 +321,7 @@ func (sc *ServerConfig) TCPRelay() (*TCPRelay, error) {
 
 	case "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm":
 		if len(sc.UnsafeRequestStreamPrefix) != 0 || len(sc.UnsafeResponseStreamPrefix) != 0 {
-			sc.logger.Warn("Unsafe stream prefix taints the server", zap.String("server", sc.Name))
+			sc.logger.Warn("Unsafe stream prefix taints the server", sc.logger.WithField("server", sc.Name))
 		}
 
 		s := ss2022.NewTCPServer(sc.AllowSegmentedFixedLengthHeader, sc.userCipherConfig, sc.identityCipherConfig, sc.UnsafeRequestStreamPrefix, sc.UnsafeResponseStreamPrefix)
@@ -341,8 +341,8 @@ func (sc *ServerConfig) TCPRelay() (*TCPRelay, error) {
 
 	if sc.UnsafeFallbackAddress.IsValid() {
 		sc.logger.Warn("Unsafe fallback taints the server",
-			zap.String("server", sc.Name),
-			zap.Stringer("fallbackAddress", sc.UnsafeFallbackAddress),
+			sc.logger.WithField("server", sc.Name),
+			sc.logger.WithField("fallbackAddress", sc.UnsafeFallbackAddress),
 		)
 	}
 

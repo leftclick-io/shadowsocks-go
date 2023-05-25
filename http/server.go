@@ -13,16 +13,16 @@ import (
 
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/direct"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/pipe"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 //go:linkname readRequest net/http.readRequest
 func readRequest(b *bufio.Reader) (req *http.Request, err error)
 
 // NewHttpStreamServerReadWriter handles a HTTP request from rw and wraps rw into a ReadWriter ready for use.
-func NewHttpStreamServerReadWriter(rw zerocopy.DirectReadWriteCloser, logger *zap.Logger) (*direct.DirectStreamReadWriter, conn.Addr, error) {
+func NewHttpStreamServerReadWriter(rw zerocopy.DirectReadWriteCloser, logger logging.Logger) (*direct.DirectStreamReadWriter, conn.Addr, error) {
 	rwbr := bufio.NewReader(rw)
 	req, err := readRequest(rwbr)
 	if err != nil {
@@ -66,13 +66,11 @@ func NewHttpStreamServerReadWriter(rw zerocopy.DirectReadWriteCloser, logger *za
 
 			delete(req.Header, "Proxy-Connection")
 
-			if ce := logger.Check(zap.DebugLevel, "Writing HTTP request"); ce != nil {
-				ce.Write(
-					zap.String("proto", req.Proto),
-					zap.String("method", req.Method),
-					zap.String("url", req.RequestURI),
-				)
-			}
+			logger.Debug("Writing HTTP request",
+				logger.WithField("proto", req.Proto),
+				logger.WithField("method", req.Method),
+				logger.WithField("url", req.RequestURI),
+			)
 
 			// Write request.
 			if werr = req.Write(plbw); werr != nil {
@@ -101,13 +99,11 @@ func NewHttpStreamServerReadWriter(rw zerocopy.DirectReadWriteCloser, logger *za
 			case http.StatusMovedPermanently, http.StatusFound, http.StatusTemporaryRedirect:
 				location := resp.Header["Location"]
 
-				if ce := logger.Check(zap.DebugLevel, "Checking HTTP 3xx response Location header"); ce != nil {
-					ce.Write(
-						zap.String("proto", resp.Proto),
-						zap.String("status", resp.Status),
-						zap.Strings("location", location),
-					)
-				}
+				logger.Debug("Checking HTTP 3xx response Location header",
+					logger.WithField("proto", resp.Proto),
+					logger.WithField("status", resp.Status),
+					logger.WithField("location", location),
+				)
 
 				if len(location) != 1 {
 					break
@@ -125,12 +121,10 @@ func NewHttpStreamServerReadWriter(rw zerocopy.DirectReadWriteCloser, logger *za
 				}
 			}
 
-			if ce := logger.Check(zap.DebugLevel, "Writing HTTP response"); ce != nil {
-				ce.Write(
-					zap.String("proto", resp.Proto),
-					zap.String("status", resp.Status),
-				)
-			}
+			logger.Debug("Writing HTTP response",
+				logger.WithField("proto", resp.Proto),
+				logger.WithField("status", resp.Status),
+			)
 
 			// Write response.
 			if rerr = resp.Write(rwbw); rerr != nil {

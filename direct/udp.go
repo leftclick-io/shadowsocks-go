@@ -9,9 +9,9 @@ import (
 	"os"
 
 	"github.com/database64128/shadowsocks-go/conn"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/socks5"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 // DirectUDPClient implements the zerocopy UDPClient interface.
@@ -89,14 +89,14 @@ func (c *ShadowsocksNoneUDPClient) NewSession(ctx context.Context) (zerocopy.UDP
 
 // Socks5UDPClient implements the zerocopy UDPClient interface.
 type Socks5UDPClient struct {
-	logger  *zap.Logger
+	logger  logging.Logger
 	address string
 	dialer  conn.Dialer
 	info    zerocopy.UDPClientInfo
 }
 
 // NewSocks5UDPClient creates a new SOCKS5 UDP client.
-func NewSocks5UDPClient(logger *zap.Logger, name, address string, dialer conn.Dialer, mtu int, listenConfig conn.ListenConfig) *Socks5UDPClient {
+func NewSocks5UDPClient(logger logging.Logger, name, address string, dialer conn.Dialer, mtu int, listenConfig conn.ListenConfig) *Socks5UDPClient {
 	return &Socks5UDPClient{
 		logger:  logger,
 		address: address,
@@ -143,8 +143,8 @@ func (c *Socks5UDPClient) NewSession(ctx context.Context) (zerocopy.UDPClientInf
 		default:
 			if !errors.Is(err, os.ErrDeadlineExceeded) {
 				c.logger.Warn("Failed to keep TCP connection open for UDP association",
-					zap.String("client", c.info.Name),
-					zap.Error(err),
+					c.logger.WithField("client", c.info.Name),
+					c.logger.WithError(err),
 				)
 			}
 		}

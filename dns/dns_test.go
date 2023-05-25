@@ -7,11 +7,12 @@ import (
 
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/direct"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/zerocopy"
 	"go.uber.org/zap"
 )
 
-func testResolver(t *testing.T, ctx context.Context, name string, serverAddrPort netip.AddrPort, tcpClient zerocopy.TCPClient, udpClient zerocopy.UDPClient, logger *zap.Logger) {
+func testResolver(t *testing.T, ctx context.Context, name string, serverAddrPort netip.AddrPort, tcpClient zerocopy.TCPClient, udpClient zerocopy.UDPClient, logger logging.Logger) {
 	r := NewResolver(name, serverAddrPort, tcpClient, udpClient, logger)
 
 	// Uncached lookup.
@@ -38,10 +39,7 @@ func testResolver(t *testing.T, ctx context.Context, name string, serverAddrPort
 }
 
 func TestResolver(t *testing.T) {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		t.Fatal(err)
-	}
+	logger := logging.NewZapLogger(zap.NewDevelopmentConfig())
 	defer logger.Sync()
 
 	ctx := context.Background()

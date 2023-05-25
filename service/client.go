@@ -7,9 +7,9 @@ import (
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/direct"
 	"github.com/database64128/shadowsocks-go/http"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/ss2022"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 // ClientConfig stores a client configuration.
@@ -73,7 +73,7 @@ type ClientConfig struct {
 
 	listenConfigCache conn.ListenConfigCache
 	dialerCache       conn.DialerCache
-	logger            *zap.Logger
+	logger            logging.Logger
 }
 
 func (cc *ClientConfig) checkAddresses() error {
@@ -107,7 +107,7 @@ func (cc *ClientConfig) checkAddresses() error {
 }
 
 // Initialize initializes the client configuration.
-func (cc *ClientConfig) Initialize(listenConfigCache conn.ListenConfigCache, dialerCache conn.DialerCache, logger *zap.Logger) (err error) {
+func (cc *ClientConfig) Initialize(listenConfigCache conn.ListenConfigCache, dialerCache conn.DialerCache, logger logging.Logger) (err error) {
 	if err = cc.checkAddresses(); err != nil {
 		return
 	}
@@ -152,7 +152,7 @@ func (cc *ClientConfig) TCPClient() (zerocopy.TCPClient, error) {
 		return http.NewProxyClient(cc.Name, cc.TCPAddress.String(), dialer), nil
 	case "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm":
 		if len(cc.UnsafeRequestStreamPrefix) != 0 || len(cc.UnsafeResponseStreamPrefix) != 0 {
-			cc.logger.Warn("Unsafe stream prefix taints the client", zap.String("client", cc.Name))
+			cc.logger.Warn("Unsafe stream prefix taints the client", cc.logger.WithField("client", cc.Name))
 		}
 		return ss2022.NewTCPClient(cc.Name, cc.TCPAddress.String(), dialer, cc.AllowSegmentedFixedLengthHeader, cc.cipherConfig, cc.UnsafeRequestStreamPrefix, cc.UnsafeResponseStreamPrefix), nil
 	default:

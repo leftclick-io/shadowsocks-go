@@ -9,10 +9,10 @@ import (
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/cred"
 	"github.com/database64128/shadowsocks-go/dns"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/router"
 	"github.com/database64128/shadowsocks-go/stats"
 	"github.com/database64128/shadowsocks-go/zerocopy"
-	"go.uber.org/zap"
 )
 
 var errNetworkDisabled = errors.New("this network (tcp or udp) is disabled")
@@ -44,7 +44,7 @@ type Config struct {
 // Manager initializes the service manager.
 //
 // Initialization order: clients -> DNS -> router -> servers
-func (sc *Config) Manager(logger *zap.Logger) (*Manager, error) {
+func (sc *Config) Manager(logger logging.Logger) (*Manager, error) {
 	if len(sc.Servers) == 0 {
 		return nil, errors.New("no services to start")
 	}
@@ -168,7 +168,7 @@ func (sc *Config) Manager(logger *zap.Logger) (*Manager, error) {
 type Manager struct {
 	services []Relay
 	router   *router.Router
-	logger   *zap.Logger
+	logger   logging.Logger
 	credman  *cred.Manager
 }
 
@@ -192,17 +192,17 @@ func (m *Manager) Stop() {
 	for _, s := range m.services {
 		if err := s.Stop(); err != nil {
 			m.logger.Warn("Failed to stop service",
-				zap.Stringer("service", s),
-				zap.Error(err),
+				m.logger.WithField("service", s),
+				m.logger.WithError(err),
 			)
 		}
-		m.logger.Info("Stopped service", zap.Stringer("service", s))
+		m.logger.Info("Stopped service", m.logger.WithField("service", s))
 	}
 }
 
 // Close closes the manager.
 func (m *Manager) Close() {
 	if err := m.router.Close(); err != nil {
-		m.logger.Warn("Failed to close router", zap.Error(err))
+		m.logger.Warn("Failed to close router", m.logger.WithError(err))
 	}
 }

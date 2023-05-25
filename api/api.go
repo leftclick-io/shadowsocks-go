@@ -6,10 +6,10 @@ import (
 
 	v1 "github.com/database64128/shadowsocks-go/api/v1"
 	"github.com/database64128/shadowsocks-go/jsonhelper"
-	"github.com/gofiber/contrib/fiberzap"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/etag"
-	"go.uber.org/zap"
+	mwlog "github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 // Config stores the configuration for the RESTful API.
@@ -33,7 +33,7 @@ type Config struct {
 }
 
 // Server returns a new API server from the config.
-func (c *Config) Server(logger *zap.Logger) (*Server, *v1.ServerManager, error) {
+func (c *Config) Server(logger logging.Logger) (*Server, *v1.ServerManager, error) {
 	if !c.Enabled {
 		return nil, nil, nil
 	}
@@ -56,10 +56,9 @@ func (c *Config) Server(logger *zap.Logger) (*Server, *v1.ServerManager, error) 
 
 	app.Use(etag.New())
 
-	app.Use(fiberzap.New(fiberzap.Config{
-		Logger: logger,
-		Fields: []string{"latency", "status", "method", "url", "ip"},
-	}))
+	mwConf := mwlog.ConfigDefault
+	mwConf.Output = logger
+	app.Use(mwlog.New(mwConf))
 
 	var router fiber.Router = app
 	if c.SecretPath != "" {
@@ -80,7 +79,7 @@ func (c *Config) Server(logger *zap.Logger) (*Server, *v1.ServerManager, error) 
 
 // Server is the RESTful API server.
 type Server struct {
-	logger         *zap.Logger
+	logger         logging.Logger
 	app            *fiber.App
 	listen         string
 	certFile       string
@@ -108,7 +107,7 @@ func (s *Server) Start(ctx context.Context) error {
 			err = s.app.Listen(s.listen)
 		}
 		if err != nil {
-			s.logger.Fatal("Failed to start API server", zap.Error(err))
+			s.logger.Fatal("Failed to start API server", s.logger.WithError(err))
 		}
 	}()
 	return nil

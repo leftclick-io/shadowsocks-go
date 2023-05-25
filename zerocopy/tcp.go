@@ -10,7 +10,7 @@ import (
 
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/fastrand"
-	"go.uber.org/zap"
+	"github.com/database64128/shadowsocks-go/logging"
 )
 
 var (
@@ -91,55 +91,55 @@ func (o *TCPConnOpener) Open(ctx context.Context, b []byte) (DirectReadWriteClos
 
 // TCPConnCloser handles a potentially malicious TCP connection.
 // Upon returning, the TCP connection is safe to close.
-type TCPConnCloser func(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger *zap.Logger)
+type TCPConnCloser func(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger logging.Logger)
 
 // JustClose closes the TCP connection without any special handling.
-func JustClose(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger *zap.Logger) {
+func JustClose(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger logging.Logger) {
 }
 
 // ForceReset forces a reset of the TCP connection, regardless of
 // whether there's unread data or not.
-func ForceReset(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger *zap.Logger) {
+func ForceReset(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger logging.Logger) {
 	if err := conn.SetLinger(0); err != nil {
 		logger.Warn("Failed to set SO_LINGER on TCP connection",
-			zap.String("server", serverName),
-			zap.String("listenAddress", listenAddress),
-			zap.String("clientAddress", clientAddress),
-			zap.Error(err),
+			logger.WithField("server", serverName),
+			logger.WithField("listenAddress", listenAddress),
+			logger.WithField("clientAddress", clientAddress),
+			logger.WithError(err),
 		)
 	}
 
 	logger.Info("Forcing RST on TCP connection",
-		zap.String("server", serverName),
-		zap.String("listenAddress", listenAddress),
-		zap.String("clientAddress", clientAddress),
+		logger.WithField("server", serverName),
+		logger.WithField("listenAddress", listenAddress),
+		logger.WithField("clientAddress", clientAddress),
 	)
 }
 
 // CloseWriteDrain closes the write end of the TCP connection,
 // then drain the read end.
-func CloseWriteDrain(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger *zap.Logger) {
+func CloseWriteDrain(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger logging.Logger) {
 	if err := conn.CloseWrite(); err != nil {
 		logger.Warn("Failed to close write half of TCP connection",
-			zap.String("server", serverName),
-			zap.String("listenAddress", listenAddress),
-			zap.String("clientAddress", clientAddress),
-			zap.Error(err),
+			logger.WithField("server", serverName),
+			logger.WithField("listenAddress", listenAddress),
+			logger.WithField("clientAddress", clientAddress),
+			logger.WithError(err),
 		)
 	}
 
 	n, err := io.Copy(io.Discard, conn)
 	logger.Info("Drained TCP connection",
-		zap.String("server", serverName),
-		zap.String("listenAddress", listenAddress),
-		zap.String("clientAddress", clientAddress),
-		zap.Int64("bytesRead", n),
-		zap.Error(err),
+		logger.WithField("server", serverName),
+		logger.WithField("listenAddress", listenAddress),
+		logger.WithField("clientAddress", clientAddress),
+		logger.WithField("bytesRead", n),
+		logger.WithError(err),
 	)
 }
 
 // ReplyWithGibberish keeps reading and replying with random garbage until EOF or error.
-func ReplyWithGibberish(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger *zap.Logger) {
+func ReplyWithGibberish(conn *net.TCPConn, serverName, listenAddress, clientAddress string, logger logging.Logger) {
 	const (
 		riBits = 7
 		riMask = 1<<riBits - 1
@@ -196,12 +196,12 @@ func ReplyWithGibberish(conn *net.TCPConn, serverName, listenAddress, clientAddr
 	}
 
 	logger.Info("Replied with gibberish",
-		zap.String("server", serverName),
-		zap.String("listenAddress", listenAddress),
-		zap.String("clientAddress", clientAddress),
-		zap.Int64("bytesRead", bytesRead),
-		zap.Int64("bytesWritten", bytesWritten),
-		zap.Error(err),
+		logger.WithField("server", serverName),
+		logger.WithField("listenAddress", listenAddress),
+		logger.WithField("clientAddress", clientAddress),
+		logger.WithField("bytesRead", bytesRead),
+		logger.WithField("bytesWritten", bytesWritten),
+		logger.WithError(err),
 	)
 }
 

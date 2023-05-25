@@ -10,11 +10,11 @@ import (
 	"github.com/database64128/shadowsocks-go/conn"
 	"github.com/database64128/shadowsocks-go/dns"
 	"github.com/database64128/shadowsocks-go/domainset"
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/portset"
 	"github.com/database64128/shadowsocks-go/slices"
 	"github.com/database64128/shadowsocks-go/zerocopy"
 	"github.com/oschwald/geoip2-golang"
-	"go.uber.org/zap"
 	"go4.org/netipx"
 )
 
@@ -127,7 +127,7 @@ type RouteConfig struct {
 }
 
 // Route creates a route from the RouteConfig.
-func (rc *RouteConfig) Route(geoip *geoip2.Reader, logger *zap.Logger, resolvers []*dns.Resolver, resolverMap map[string]*dns.Resolver, tcpClientMap map[string]zerocopy.TCPClient, udpClientMap map[string]zerocopy.UDPClient, serverIndexByName map[string]int, domainSetMap map[string]domainset.DomainSet, prefixSetMap map[string]*netipx.IPSet) (Route, error) {
+func (rc *RouteConfig) Route(geoip *geoip2.Reader, logger logging.Logger, resolvers []*dns.Resolver, resolverMap map[string]*dns.Resolver, tcpClientMap map[string]zerocopy.TCPClient, udpClientMap map[string]zerocopy.UDPClient, serverIndexByName map[string]int, domainSetMap map[string]domainset.DomainSet, prefixSetMap map[string]*netipx.IPSet) (Route, error) {
 	// Bad name.
 	switch rc.Name {
 	case "", "default":
@@ -641,7 +641,7 @@ func (c *SourceIPCriterion) Meet(ctx context.Context, network protocol, requestI
 type SourceGeoIPCountryCriterion struct {
 	countries []string
 	geoip     *geoip2.Reader
-	logger    *zap.Logger
+	logger    logging.Logger
 }
 
 // Meet implements the Criterion Meet method.
@@ -728,7 +728,7 @@ func (c DestResolvedIPCriterion) Meet(ctx context.Context, network protocol, req
 type DestGeoIPCountryCriterion struct {
 	countries []string
 	geoip     *geoip2.Reader
-	logger    *zap.Logger
+	logger    logging.Logger
 }
 
 // Meet implements the Criterion Meet method.
@@ -743,7 +743,7 @@ func (c DestGeoIPCountryCriterion) Meet(ctx context.Context, network protocol, r
 type DestResolvedGeoIPCountryCriterion struct {
 	countries []string
 	geoip     *geoip2.Reader
-	logger    *zap.Logger
+	logger    logging.Logger
 	resolvers []*dns.Resolver
 }
 
@@ -755,21 +755,20 @@ func (c DestResolvedGeoIPCountryCriterion) Meet(ctx context.Context, network pro
 	return matchDomainToGeoIPCountries(ctx, c.resolvers, requestInfo.TargetAddr.Domain(), c.countries, c.geoip, c.logger)
 }
 
-func matchAddrToGeoIPCountries(countries []string, addr netip.Addr, geoip *geoip2.Reader, logger *zap.Logger) (bool, error) {
+func matchAddrToGeoIPCountries(countries []string, addr netip.Addr, geoip *geoip2.Reader, logger logging.Logger) (bool, error) {
 	country, err := geoip.Country(addr.AsSlice())
 	if err != nil {
 		return false, err
 	}
-	if ce := logger.Check(zap.DebugLevel, "Matched GeoIP country"); ce != nil {
-		ce.Write(
-			zap.Stringer("ip", addr),
-			zap.String("country", country.Country.IsoCode),
-		)
-	}
+	logger.Debug("Matched GeoIP country",
+		logger.WithField("ip", addr),
+		logger.WithField("country", country.Country.IsoCode),
+	)
+
 	return slices.Contains(countries, country.Country.IsoCode), nil
 }
 
-func matchResultToGeoIPCountries(countries []string, result dns.Result, geoip *geoip2.Reader, logger *zap.Logger) (bool, error) {
+func matchResultToGeoIPCountries(countries []string, result dns.Result, geoip *geoip2.Reader, logger logging.Logger) (bool, error) {
 	for _, v6 := range result.IPv6 {
 		return matchAddrToGeoIPCountries(countries, v6, geoip, logger)
 	}
@@ -809,7 +808,7 @@ func matchDomainToDomainSets(domainSets []domainset.DomainSet, domain string) bo
 	return false
 }
 
-func matchDomainToGeoIPCountries(ctx context.Context, resolvers []*dns.Resolver, domain string, countries []string, geoip *geoip2.Reader, logger *zap.Logger) (bool, error) {
+func matchDomainToGeoIPCountries(ctx context.Context, resolvers []*dns.Resolver, domain string, countries []string, geoip *geoip2.Reader, logger logging.Logger) (bool, error) {
 	result, err := lookup(ctx, resolvers, domain)
 	if err != nil {
 		return false, err

@@ -12,11 +12,11 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/maps"
 	"github.com/database64128/shadowsocks-go/mmap"
 	"github.com/database64128/shadowsocks-go/slices"
 	"github.com/database64128/shadowsocks-go/ss2022"
-	"go.uber.org/zap"
 )
 
 var (
@@ -37,7 +37,7 @@ type ManagedServer struct {
 	mu                  sync.RWMutex
 	wg                  sync.WaitGroup
 	saveQueue           chan struct{}
-	logger              *zap.Logger
+	logger              logging.Logger
 }
 
 // UserCredential stores a user's credential.
@@ -125,13 +125,13 @@ func (s *ManagedServer) dequeueSave(ctx context.Context) {
 		default:
 		}
 
-		// The save operation only reads cachedCredMap and writes cachedContent.
+		// The save operation only reads cachedCredMap and writes cachedContent.-
 		// It is without doubt that taking the read lock is enough for cachedCredMap.
 		// As for cachedContent, the only other place that reads and writes it is LoadFromFile,
 		// which takes the write lock. So it is safe to take just the read lock here.
 		s.mu.RLock()
 		if err := s.saveToFile(); err != nil {
-			s.logger.Warn("Failed to save credentials", zap.Error(err))
+			s.logger.Warn("Failed to save credentials", s.logger.WithError(err))
 		}
 		s.mu.RUnlock()
 	}
@@ -317,12 +317,12 @@ func (s *ManagedServer) LoadFromFile() error {
 
 // Manager manages credentials for servers of supported protocols.
 type Manager struct {
-	logger  *zap.Logger
+	logger  logging.Logger
 	servers map[string]*ManagedServer
 }
 
 // NewManager returns a new credential manager.
-func NewManager(logger *zap.Logger) *Manager {
+func NewManager(logger logging.Logger) *Manager {
 	return &Manager{
 		logger:  logger,
 		servers: make(map[string]*ManagedServer),
@@ -333,10 +333,10 @@ func NewManager(logger *zap.Logger) *Manager {
 func (m *Manager) ReloadAll() {
 	for name, s := range m.servers {
 		if err := s.LoadFromFile(); err != nil {
-			m.logger.Warn("Failed to reload credentials", zap.String("server", name), zap.Error(err))
+			m.logger.Warn("Failed to reload credentials", m.logger.WithField("server", name), s.logger.WithError(err))
 			continue
 		}
-		m.logger.Info("Reloaded credentials", zap.String("server", name))
+		m.logger.Info("Reloaded credentials", m.logger.WithField("server", name))
 	}
 }
 
@@ -346,7 +346,7 @@ func (m *Manager) LoadAll() error {
 		if err := s.LoadFromFile(); err != nil {
 			return fmt.Errorf("failed to load credentials for server %s: %w", name, err)
 		}
-		m.logger.Debug("Loaded credentials", zap.String("server", name))
+		m.logger.Debug("Loaded credentials", m.logger.WithField("server", name))
 	}
 	return nil
 }
@@ -408,6 +408,6 @@ func (m *Manager) RegisterServer(name, path string, pskLength int, tcpCredStore,
 	}
 
 	m.servers[name] = s
-	m.logger.Debug("Registered server", zap.String("server", name))
+	m.logger.Debug("Registered server", m.logger.WithField("server", name))
 	return s, nil
 }

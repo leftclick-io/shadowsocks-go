@@ -18,7 +18,7 @@ func NewUDPTransparentRelay(
 	transparentConnListenConfig conn.ListenConfig,
 	collector stats.Collector,
 	router *router.Router,
-	logger *zap.Logger,
+	logger logging.Logger,
 ) (Relay, error) {
 	return nil, errors.New("transparent proxy is not implemented for this platform")
 }
