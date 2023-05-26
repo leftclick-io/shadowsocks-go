@@ -2,10 +2,9 @@ package logging
 
 import "io"
 
-// A Field is a marshaling operation used to add a key-value pair to a logger's
-// context.
+// A Field is a marshaling operation used to add a key-value pair to a logger's context.
 type Field struct {
-	v any
+	V any
 }
 
 // Logger defines a generic logger for shadowsocks-go.

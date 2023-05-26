@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/database64128/tfo-go/v2 v2.0.6
+	github.com/goccy/go-reflect v1.2.0
 	github.com/gofiber/fiber/v2 v2.46.0
 	github.com/oschwald/geoip2-golang v1.8.0
 	go.uber.org/zap v1.24.0
@@ -16,7 +17,6 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
-	github.com/goccy/go-reflect v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/klauspost/compress v1.16.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect

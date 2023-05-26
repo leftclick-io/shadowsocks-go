@@ -31,7 +31,7 @@ func fieldsToZap(f []Field) []zap.Field {
 	n := make([]zap.Field, len(f))
 
 	for i := range f {
-		n[i] = f[i].v.(zap.Field)
+		n[i] = f[i].V.(zap.Field)
 	}
 
 	return n
