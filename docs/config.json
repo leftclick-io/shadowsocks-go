@@ -28,7 +28,9 @@
                     "trafficClass": 0,
                     "reusePort": true,
                     "fastOpen": true,
-                    "disableInitialPayloadWait": false
+                    "disableInitialPayloadWait": false,
+                    "initialPayloadWaitTimeout": "250ms",
+                    "initialPayloadWaitBufferSize": 1440
                 },
                 {
                     "network": "tcp",
@@ -37,7 +39,9 @@
                     "trafficClass": 0,
                     "reusePort": true,
                     "fastOpen": true,
-                    "disableInitialPayloadWait": false
+                    "disableInitialPayloadWait": false,
+                    "initialPayloadWaitTimeout": "250ms",
+                    "initialPayloadWaitBufferSize": 1440
                 },
                 {
                     "network": "tcp4",
@@ -46,7 +50,9 @@
                     "trafficClass": 0,
                     "reusePort": false,
                     "fastOpen": true,
-                    "disableInitialPayloadWait": false
+                    "disableInitialPayloadWait": false,
+                    "initialPayloadWaitTimeout": "250ms",
+                    "initialPayloadWaitBufferSize": 1440
                 },
                 {
                     "network": "tcp6",
@@ -55,7 +61,9 @@
                     "trafficClass": 0,
                     "reusePort": false,
                     "fastOpen": true,
-                    "disableInitialPayloadWait": false
+                    "disableInitialPayloadWait": false,
+                    "initialPayloadWaitTimeout": "250ms",
+                    "initialPayloadWaitBufferSize": 1440
                 }
             ],
             "udpListeners": [
@@ -69,7 +77,7 @@
                     "relayBatchSize": 0,
                     "serverRecvBatchSize": 0,
                     "sendChannelCapacity": 0,
-                    "natTimeoutSec": 0
+                    "natTimeout": "180s"
                 },
                 {
                     "network": "udp",
@@ -81,7 +89,7 @@
                     "relayBatchSize": 0,
                     "serverRecvBatchSize": 0,
                     "sendChannelCapacity": 0,
-                    "natTimeoutSec": 0
+                    "natTimeout": "180s"
                 },
                 {
                     "network": "udp4",
@@ -93,7 +101,7 @@
                     "relayBatchSize": 0,
                     "serverRecvBatchSize": 0,
                     "sendChannelCapacity": 0,
-                    "natTimeoutSec": 0
+                    "natTimeout": "180s"
                 },
                 {
                     "network": "udp6",
@@ -105,7 +113,7 @@
                     "relayBatchSize": 0,
                     "serverRecvBatchSize": 0,
                     "sendChannelCapacity": 0,
-                    "natTimeoutSec": 0
+                    "natTimeout": "180s"
                 }
             ],
             "mtu": 1500
@@ -176,7 +184,8 @@
             "psk": "qQln3GlVCZi5iJUObJVNCw==",
             "uPSKStorePath": "/etc/shadowsocks-go/upsks.json",
             "paddingPolicy": "",
-            "rejectPolicy": ""
+            "rejectPolicy": "",
+            "slidingWindowFilterSize": 256
         }
     ],
     "clients": [
@@ -195,7 +204,8 @@
             "iPSKs": [
                 "qQln3GlVCZi5iJUObJVNCw=="
             ],
-            "paddingPolicy": ""
+            "paddingPolicy": "",
+            "slidingWindowFilterSize": 256
         },
         {
             "name": "ss-2022-b",
@@ -213,7 +223,8 @@
             "iPSKs": [
                 "McxLxNcqHUb01ZedJfp55g=="
             ],
-            "paddingPolicy": ""
+            "paddingPolicy": "",
+            "slidingWindowFilterSize": 256
         },
         {
             "name": "direct",
@@ -232,6 +243,16 @@
             "addrPort": "[2606:4700:4700::1111]:53",
             "tcpClientName": "ss-2022-a",
             "udpClientName": "ss-2022-a"
+        },
+        {
+            "name": "systemd-resolved",
+            "addrPort": "127.0.0.53:53",
+            "tcpClientName": "direct",
+            "udpClientName": "direct"
+        },
+        {
+            "name": "system",
+            "type": "system"
         }
     ],
     "router": {

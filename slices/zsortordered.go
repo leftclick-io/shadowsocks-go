@@ -6,12 +6,12 @@
 
 package slices
 
-import "github.com/database64128/shadowsocks-go/constraints"
+import "github.com/database64128/shadowsocks-go/cmp"
 
 // insertionSortOrdered sorts data[a:b] using insertion sort.
-func insertionSortOrdered[E constraints.Ordered](data []E, a, b int) {
+func insertionSortOrdered[E cmp.Ordered](data []E, a, b int) {
 	for i := a + 1; i < b; i++ {
-		for j := i; j > a && (data[j] < data[j-1]); j-- {
+		for j := i; j > a && cmp.Less(data[j], data[j-1]); j-- {
 			data[j], data[j-1] = data[j-1], data[j]
 		}
 	}
@@ -19,17 +19,17 @@ func insertionSortOrdered[E constraints.Ordered](data []E, a, b int) {
 
 // siftDownOrdered implements the heap property on data[lo:hi].
 // first is an offset into the array where the root of the heap lies.
-func siftDownOrdered[E constraints.Ordered](data []E, lo, hi, first int) {
+func siftDownOrdered[E cmp.Ordered](data []E, lo, hi, first int) {
 	root := lo
 	for {
 		child := 2*root + 1
 		if child >= hi {
 			break
 		}
-		if child+1 < hi && (data[first+child] < data[first+child+1]) {
+		if child+1 < hi && cmp.Less(data[first+child], data[first+child+1]) {
 			child++
 		}
-		if !(data[first+root] < data[first+child]) {
+		if !cmp.Less(data[first+root], data[first+child]) {
 			return
 		}
 		data[first+root], data[first+child] = data[first+child], data[first+root]
@@ -37,7 +37,7 @@ func siftDownOrdered[E constraints.Ordered](data []E, lo, hi, first int) {
 	}
 }
 
-func heapSortOrdered[E constraints.Ordered](data []E, a, b int) {
+func heapSortOrdered[E cmp.Ordered](data []E, a, b int) {
 	first := a
 	lo := 0
 	hi := b - a
@@ -60,7 +60,7 @@ func heapSortOrdered[E constraints.Ordered](data []E, a, b int) {
 // C++ implementation: https://github.com/orlp/pdqsort
 // Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
 // limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
-func pdqsortOrdered[E constraints.Ordered](data []E, a, b, limit int) {
+func pdqsortOrdered[E cmp.Ordered](data []E, a, b, limit int) {
 	const maxInsertion = 12
 
 	var (
@@ -107,7 +107,7 @@ func pdqsortOrdered[E constraints.Ordered](data []E, a, b, limit int) {
 
 		// Probably the slice contains many duplicate elements, partition the slice into
 		// elements equal to and elements greater than the pivot.
-		if a > 0 && !(data[a-1] < data[pivot]) {
+		if a > 0 && !cmp.Less(data[a-1], data[pivot]) {
 			mid := partitionEqualOrdered(data, a, b, pivot)
 			a = mid
 			continue
@@ -134,14 +134,14 @@ func pdqsortOrdered[E constraints.Ordered](data []E, a, b, limit int) {
 // Let p = data[pivot]
 // Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
 // On return, data[newpivot] = p
-func partitionOrdered[E constraints.Ordered](data []E, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
+func partitionOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
 	data[a], data[pivot] = data[pivot], data[a]
 	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
 
-	for i <= j && (data[i] < data[a]) {
+	for i <= j && cmp.Less(data[i], data[a]) {
 		i++
 	}
-	for i <= j && !(data[j] < data[a]) {
+	for i <= j && !cmp.Less(data[j], data[a]) {
 		j--
 	}
 	if i > j {
@@ -153,10 +153,10 @@ func partitionOrdered[E constraints.Ordered](data []E, a, b, pivot int) (newpivo
 	j--
 
 	for {
-		for i <= j && (data[i] < data[a]) {
+		for i <= j && cmp.Less(data[i], data[a]) {
 			i++
 		}
-		for i <= j && !(data[j] < data[a]) {
+		for i <= j && !cmp.Less(data[j], data[a]) {
 			j--
 		}
 		if i > j {
@@ -172,15 +172,15 @@ func partitionOrdered[E constraints.Ordered](data []E, a, b, pivot int) (newpivo
 
 // partitionEqualOrdered partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
 // It assumed that data[a:b] does not contain elements smaller than the data[pivot].
-func partitionEqualOrdered[E constraints.Ordered](data []E, a, b, pivot int) (newpivot int) {
+func partitionEqualOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot int) {
 	data[a], data[pivot] = data[pivot], data[a]
 	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
 
 	for {
-		for i <= j && !(data[a] < data[i]) {
+		for i <= j && !cmp.Less(data[a], data[i]) {
 			i++
 		}
-		for i <= j && (data[a] < data[j]) {
+		for i <= j && cmp.Less(data[a], data[j]) {
 			j--
 		}
 		if i > j {
@@ -194,14 +194,14 @@ func partitionEqualOrdered[E constraints.Ordered](data []E, a, b, pivot int) (ne
 }
 
 // partialInsertionSortOrdered partially sorts a slice, returns true if the slice is sorted at the end.
-func partialInsertionSortOrdered[E constraints.Ordered](data []E, a, b int) bool {
+func partialInsertionSortOrdered[E cmp.Ordered](data []E, a, b int) bool {
 	const (
 		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
 		shortestShifting = 50 // don't shift any elements on short arrays
 	)
 	i := a + 1
 	for j := 0; j < maxSteps; j++ {
-		for i < b && !(data[i] < data[i-1]) {
+		for i < b && !cmp.Less(data[i], data[i-1]) {
 			i++
 		}
 
@@ -218,7 +218,7 @@ func partialInsertionSortOrdered[E constraints.Ordered](data []E, a, b int) bool
 		// Shift the smaller one to the left.
 		if i-a >= 2 {
 			for j := i - 1; j >= 1; j-- {
-				if !(data[j] < data[j-1]) {
+				if !cmp.Less(data[j], data[j-1]) {
 					break
 				}
 				data[j], data[j-1] = data[j-1], data[j]
@@ -227,7 +227,7 @@ func partialInsertionSortOrdered[E constraints.Ordered](data []E, a, b int) bool
 		// Shift the greater one to the right.
 		if b-i >= 2 {
 			for j := i + 1; j < b; j++ {
-				if !(data[j] < data[j-1]) {
+				if !cmp.Less(data[j], data[j-1]) {
 					break
 				}
 				data[j], data[j-1] = data[j-1], data[j]
@@ -239,7 +239,7 @@ func partialInsertionSortOrdered[E constraints.Ordered](data []E, a, b int) bool
 
 // breakPatternsOrdered scatters some elements around in an attempt to break some patterns
 // that might cause imbalanced partitions in quicksort.
-func breakPatternsOrdered[E constraints.Ordered](data []E, a, b int) {
+func breakPatternsOrdered[E cmp.Ordered](data []E, a, b int) {
 	length := b - a
 	if length >= 8 {
 		random := xorshift(length)
@@ -260,7 +260,7 @@ func breakPatternsOrdered[E constraints.Ordered](data []E, a, b int) {
 // [0,8): chooses a static pivot.
 // [8,shortestNinther): uses the simple median-of-three method.
 // [shortestNinther,∞): uses the Tukey ninther method.
-func choosePivotOrdered[E constraints.Ordered](data []E, a, b int) (pivot int, hint sortedHint) {
+func choosePivotOrdered[E cmp.Ordered](data []E, a, b int) (pivot int, hint sortedHint) {
 	const (
 		shortestNinther = 50
 		maxSwaps        = 4 * 3
@@ -297,8 +297,8 @@ func choosePivotOrdered[E constraints.Ordered](data []E, a, b int) (pivot int, h
 }
 
 // order2Ordered returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
-func order2Ordered[E constraints.Ordered](data []E, a, b int, swaps *int) (int, int) {
-	if data[b] < data[a] {
+func order2Ordered[E cmp.Ordered](data []E, a, b int, swaps *int) (int, int) {
+	if cmp.Less(data[b], data[a]) {
 		*swaps++
 		return b, a
 	}
@@ -306,7 +306,7 @@ func order2Ordered[E constraints.Ordered](data []E, a, b int, swaps *int) (int, 
 }
 
 // medianOrdered returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
-func medianOrdered[E constraints.Ordered](data []E, a, b, c int, swaps *int) int {
+func medianOrdered[E cmp.Ordered](data []E, a, b, c int, swaps *int) int {
 	a, b = order2Ordered(data, a, b, swaps)
 	b, c = order2Ordered(data, b, c, swaps)
 	a, b = order2Ordered(data, a, b, swaps)
@@ -314,11 +314,11 @@ func medianOrdered[E constraints.Ordered](data []E, a, b, c int, swaps *int) int
 }
 
 // medianAdjacentOrdered finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
-func medianAdjacentOrdered[E constraints.Ordered](data []E, a int, swaps *int) int {
+func medianAdjacentOrdered[E cmp.Ordered](data []E, a int, swaps *int) int {
 	return medianOrdered(data, a-1, a, a+1, swaps)
 }
 
-func reverseRangeOrdered[E constraints.Ordered](data []E, a, b int) {
+func reverseRangeOrdered[E cmp.Ordered](data []E, a, b int) {
 	i := a
 	j := b - 1
 	for i < j {
@@ -328,13 +328,13 @@ func reverseRangeOrdered[E constraints.Ordered](data []E, a, b int) {
 	}
 }
 
-func swapRangeOrdered[E constraints.Ordered](data []E, a, b, n int) {
+func swapRangeOrdered[E cmp.Ordered](data []E, a, b, n int) {
 	for i := 0; i < n; i++ {
 		data[a+i], data[b+i] = data[b+i], data[a+i]
 	}
 }
 
-func stableOrdered[E constraints.Ordered](data []E, n int) {
+func stableOrdered[E cmp.Ordered](data []E, n int) {
 	blockSize := 20 // must be > 0
 	a, b := 0, blockSize
 	for b <= n {
@@ -377,7 +377,7 @@ func stableOrdered[E constraints.Ordered](data []E, n int) {
 // symMerge assumes non-degenerate arguments: a < m && m < b.
 // Having the caller check this condition eliminates many leaf recursion calls,
 // which improves performance.
-func symMergeOrdered[E constraints.Ordered](data []E, a, m, b int) {
+func symMergeOrdered[E cmp.Ordered](data []E, a, m, b int) {
 	// Avoid unnecessary recursions of symMerge
 	// by direct insertion of data[a] into data[m:b]
 	// if data[a:m] only contains one element.
@@ -389,7 +389,7 @@ func symMergeOrdered[E constraints.Ordered](data []E, a, m, b int) {
 		j := b
 		for i < j {
 			h := int(uint(i+j) >> 1)
-			if data[h] < data[a] {
+			if cmp.Less(data[h], data[a]) {
 				i = h + 1
 			} else {
 				j = h
@@ -413,7 +413,7 @@ func symMergeOrdered[E constraints.Ordered](data []E, a, m, b int) {
 		j := m
 		for i < j {
 			h := int(uint(i+j) >> 1)
-			if !(data[m] < data[h]) {
+			if !cmp.Less(data[m], data[h]) {
 				i = h + 1
 			} else {
 				j = h
@@ -440,7 +440,7 @@ func symMergeOrdered[E constraints.Ordered](data []E, a, m, b int) {
 
 	for start < r {
 		c := int(uint(start+r) >> 1)
-		if !(data[p-c] < data[c]) {
+		if !cmp.Less(data[p-c], data[c]) {
 			start = c + 1
 		} else {
 			r = c
@@ -463,7 +463,7 @@ func symMergeOrdered[E constraints.Ordered](data []E, a, m, b int) {
 // Data of the form 'x u v y' is changed to 'x v u y'.
 // rotate performs at most b-a many calls to data.Swap,
 // and it assumes non-degenerate arguments: a < m && m < b.
-func rotateOrdered[E constraints.Ordered](data []E, a, m, b int) {
+func rotateOrdered[E cmp.Ordered](data []E, a, m, b int) {
 	i := m - a
 	j := b - m
 

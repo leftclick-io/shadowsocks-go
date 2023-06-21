@@ -11,6 +11,7 @@ import (
 	"github.com/database64128/shadowsocks-go/cred"
 	"github.com/database64128/shadowsocks-go/direct"
 	"github.com/database64128/shadowsocks-go/http"
+	"github.com/database64128/shadowsocks-go/jsonhelper"
 	"github.com/database64128/shadowsocks-go/logging"
 	"github.com/database64128/shadowsocks-go/router"
 	"github.com/database64128/shadowsocks-go/ss2022"
@@ -56,14 +57,40 @@ type TCPListenerConfig struct {
 	// DisableInitialPayloadWait disables the brief wait for initial payload.
 	// Setting it to true is useful when the listener only relays server-speaks-first protocols.
 	DisableInitialPayloadWait bool `json:"disableInitialPayloadWait"`
+
+	// InitialPayloadWaitTimeout is the read timeout when waiting for the initial payload.
+	//
+	// The default value is 250ms.
+	InitialPayloadWaitTimeout jsonhelper.Duration `json:"initialPayloadWaitTimeout"`
+
+	// InitialPayloadWaitBufferSize is the read buffer size when waiting for the initial payload.
+	//
+	// The default value is 1440.
+	InitialPayloadWaitBufferSize int `json:"initialPayloadWaitBufferSize"`
 }
 
 // Configure returns a TCP listener configuration.
-func (lnc TCPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, transparent, serverNativeInitialPayload bool) (tcpRelayListener, error) {
+func (lnc *TCPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, transparent, serverNativeInitialPayload bool) (tcpRelayListener, error) {
 	switch lnc.Network {
 	case "tcp", "tcp4", "tcp6":
 	default:
 		return tcpRelayListener{}, fmt.Errorf("invalid network: %s", lnc.Network)
+	}
+
+	initialPayloadWaitTimeout := time.Duration(lnc.InitialPayloadWaitTimeout)
+
+	switch {
+	case initialPayloadWaitTimeout == 0:
+		initialPayloadWaitTimeout = defaultInitialPayloadWaitTimeout
+	case initialPayloadWaitTimeout < 0:
+		return tcpRelayListener{}, fmt.Errorf("negative initial payload wait timeout: %s", initialPayloadWaitTimeout)
+	}
+
+	switch {
+	case lnc.InitialPayloadWaitBufferSize == 0:
+		lnc.InitialPayloadWaitBufferSize = defaultInitialPayloadWaitBufferSize
+	case lnc.InitialPayloadWaitBufferSize < 0:
+		return tcpRelayListener{}, fmt.Errorf("negative initial payload wait buffer size: %d", lnc.InitialPayloadWaitBufferSize)
 	}
 
 	return tcpRelayListener{
@@ -74,9 +101,11 @@ func (lnc TCPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache,
 			Transparent:  transparent,
 			TCPFastOpen:  lnc.FastOpen,
 		}),
-		waitForInitialPayload: !serverNativeInitialPayload && !lnc.DisableInitialPayloadWait,
-		network:               lnc.Network,
-		address:               lnc.Address,
+		waitForInitialPayload:        !serverNativeInitialPayload && !lnc.DisableInitialPayloadWait,
+		initialPayloadWaitTimeout:    initialPayloadWaitTimeout,
+		initialPayloadWaitBufferSize: lnc.InitialPayloadWaitBufferSize,
+		network:                      lnc.Network,
+		address:                      lnc.Address,
 	}, nil
 }
 
@@ -88,12 +117,14 @@ type UDPListenerConfig struct {
 	// UDPPerfConfig exposes performance tuning options.
 	UDPPerfConfig
 
-	// NATTimeoutSec is the number of seconds after which an inactive session is removed.
-	NATTimeoutSec int `json:"natTimeoutSec"`
+	// NATTimeout is the duration after which an inactive NAT mapping expires.
+	//
+	// The default value is 5 minutes.
+	NATTimeout jsonhelper.Duration `json:"natTimeout"`
 }
 
 // Configure returns a UDP server socket configuration.
-func (lnc UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, minNATTimeout time.Duration, transparent bool) (udpRelayServerConn, error) {
+func (lnc *UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache, minNATTimeout time.Duration, transparent bool) (udpRelayServerConn, error) {
 	switch lnc.Network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -104,7 +135,7 @@ func (lnc UDPListenerConfig) Configure(listenConfigCache conn.ListenConfigCache,
 		return udpRelayServerConn{}, err
 	}
 
-	natTimeout := time.Duration(lnc.NATTimeoutSec) * time.Second
+	natTimeout := time.Duration(lnc.NATTimeout)
 
 	switch {
 	case natTimeout == 0:
@@ -195,10 +226,18 @@ type ServerConfig struct {
 
 	// Shadowsocks
 
-	PSK                  []byte `json:"psk"`
-	UPSKStorePath        string `json:"uPSKStorePath"`
-	PaddingPolicy        string `json:"paddingPolicy"`
-	RejectPolicy         string `json:"rejectPolicy"`
+	PSK           []byte `json:"psk"`
+	UPSKStorePath string `json:"uPSKStorePath"`
+	PaddingPolicy string `json:"paddingPolicy"`
+	RejectPolicy  string `json:"rejectPolicy"`
+
+	// SlidingWindowFilterSize is the size of the sliding window filter.
+	//
+	// The default value is 256.
+	//
+	// Only applicable to Shadowsocks 2022 UDP.
+	SlidingWindowFilterSize int `json:"slidingWindowFilterSize"`
+
 	userCipherConfig     ss2022.UserCipherConfig
 	identityCipherConfig ss2022.ServerIdentityCipherConfig
 	tcpCredStore         *ss2022.CredStore
@@ -274,7 +313,7 @@ func (sc *ServerConfig) Initialize(listenConfigCache conn.ListenConfigCache, col
 				ServerRecvBatchSize: sc.UDPServerRecvBatchSize,
 				SendChannelCapacity: sc.UDPSendChannelCapacity,
 			},
-			NATTimeoutSec: sc.NatTimeoutSec,
+			NATTimeout: jsonhelper.Duration(time.Duration(sc.NatTimeoutSec) * time.Second),
 		})
 	}
 
@@ -404,7 +443,14 @@ func (sc *ServerConfig) UDPRelay(maxClientPackerHeadroom zerocopy.Headroom) (Rel
 			return nil, err
 		}
 
-		s := ss2022.NewUDPServer(sc.userCipherConfig, sc.identityCipherConfig, shouldPad)
+		switch {
+		case sc.SlidingWindowFilterSize == 0:
+			sc.SlidingWindowFilterSize = ss2022.DefaultSlidingWindowFilterSize
+		case sc.SlidingWindowFilterSize < 0:
+			return nil, fmt.Errorf("negative sliding window filter size: %d", sc.SlidingWindowFilterSize)
+		}
+
+		s := ss2022.NewUDPServer(uint64(sc.SlidingWindowFilterSize), sc.userCipherConfig, sc.identityCipherConfig, shouldPad)
 		sc.udpCredStore = &s.CredStore
 		sessionServer = s
 
