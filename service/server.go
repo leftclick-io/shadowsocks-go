@@ -212,6 +212,10 @@ type ServerConfig struct {
 	TunnelRemoteAddress conn.Addr `json:"tunnelRemoteAddress"`
 	TunnelUDPTargetOnly bool      `json:"tunnelUDPTargetOnly"`
 
+	// Post init callback
+
+	PostInitCallback func(name string, cms *cred.ManagedServer, sc stats.Collector)
+
 	tcpEnabled bool
 	udpEnabled bool
 
@@ -509,6 +513,11 @@ func (sc *ServerConfig) PostInit(credman *cred.Manager, apiSM *v1.ServerManager)
 
 	if apiSM != nil {
 		apiSM.AddServer(sc.Name, cms, sc.collector)
+	}
+
+	if sc.PostInitCallback != nil {
+		sc.logger.Debug("Executing PostInitCallback", sc.logger.WithField("server", sc.Name))
+		sc.PostInitCallback(sc.Name, cms, sc.collector)
 	}
 
 	return nil
