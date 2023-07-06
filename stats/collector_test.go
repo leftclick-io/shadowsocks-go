@@ -62,6 +62,13 @@ func verify(t *testing.T, s Server) {
 		t.Fatalf("expected 2 users, got %d", len(s.Users))
 	}
 	for _, u := range s.Users {
+		if u.Traffic.LastSessionTimestamp == 0 {
+			t.Errorf("%s: LastSessionTimestamp is not set", u.Name)
+		}
+
+		// Reset it to zero for comparison.
+		u.Traffic.LastSessionTimestamp = 0
+
 		switch u.Name {
 		case "Steve":
 			if u.Traffic != expectedSteveTraffic {
@@ -87,6 +94,10 @@ func verifyNoUsername(t *testing.T, s Server) {
 		TCPSessions:     1,
 		UDPSessions:     1,
 	}
+
+	// Reset it to zero for comparison.
+	s.Traffic.LastSessionTimestamp = 0
+
 	if s.Traffic != expectedServerTraffic {
 		t.Errorf("expected server traffic %+v, got %+v", expectedServerTraffic, s.Traffic)
 	}

@@ -3,45 +3,55 @@ package stats
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/database64128/shadowsocks-go/cmp"
 	"github.com/database64128/shadowsocks-go/slices"
 )
 
 type trafficCollector struct {
-	downlinkPackets atomic.Uint64
-	downlinkBytes   atomic.Uint64
-	uplinkPackets   atomic.Uint64
-	uplinkBytes     atomic.Uint64
-	tcpSessions     atomic.Uint64
-	udpSessions     atomic.Uint64
+	downlinkPackets      atomic.Uint64
+	downlinkBytes        atomic.Uint64
+	uplinkPackets        atomic.Uint64
+	uplinkBytes          atomic.Uint64
+	tcpSessions          atomic.Uint64
+	udpSessions          atomic.Uint64
+	lastSessionTimestamp atomic.Uint64
+}
+
+func getTimestamp() uint64 {
+	return uint64(time.Now().Unix())
 }
 
 func (tc *trafficCollector) collectTCPSession(downlinkBytes, uplinkBytes uint64) {
 	tc.downlinkBytes.Add(downlinkBytes)
 	tc.uplinkBytes.Add(uplinkBytes)
 	tc.tcpSessions.Add(1)
+	tc.lastSessionTimestamp.Store(getTimestamp())
 }
 
 func (tc *trafficCollector) collectUDPSessionDownlink(downlinkPackets, downlinkBytes uint64) {
 	tc.downlinkPackets.Add(downlinkPackets)
 	tc.downlinkBytes.Add(downlinkBytes)
 	tc.udpSessions.Add(1)
+	tc.lastSessionTimestamp.Store(getTimestamp())
 }
 
 func (tc *trafficCollector) collectUDPSessionUplink(uplinkPackets, uplinkBytes uint64) {
 	tc.uplinkPackets.Add(uplinkPackets)
 	tc.uplinkBytes.Add(uplinkBytes)
+	tc.lastSessionTimestamp.Store(getTimestamp())
 }
 
 // Traffic stores the traffic statistics.
 type Traffic struct {
-	DownlinkPackets uint64 `json:"downlinkPackets"`
-	DownlinkBytes   uint64 `json:"downlinkBytes"`
-	UplinkPackets   uint64 `json:"uplinkPackets"`
-	UplinkBytes     uint64 `json:"uplinkBytes"`
-	TCPSessions     uint64 `json:"tcpSessions"`
-	UDPSessions     uint64 `json:"udpSessions"`
+	DownlinkPackets      uint64 `json:"downlinkPackets"`
+	DownlinkBytes        uint64 `json:"downlinkBytes"`
+	UplinkPackets        uint64 `json:"uplinkPackets"`
+	UplinkBytes          uint64 `json:"uplinkBytes"`
+	TCPSessions          uint64 `json:"tcpSessions"`
+	UDPSessions          uint64 `json:"udpSessions"`
+	LastSessionTimestamp uint64 `json:"lastSessionTimestamp"`
 }
 
 func (t *Traffic) Add(u Traffic) {
@@ -55,23 +65,25 @@ func (t *Traffic) Add(u Traffic) {
 
 func (tc *trafficCollector) snapshot() Traffic {
 	return Traffic{
-		DownlinkPackets: tc.downlinkPackets.Load(),
-		DownlinkBytes:   tc.downlinkBytes.Load(),
-		UplinkPackets:   tc.uplinkPackets.Load(),
-		UplinkBytes:     tc.uplinkBytes.Load(),
-		TCPSessions:     tc.tcpSessions.Load(),
-		UDPSessions:     tc.udpSessions.Load(),
+		DownlinkPackets:      tc.downlinkPackets.Load(),
+		DownlinkBytes:        tc.downlinkBytes.Load(),
+		UplinkPackets:        tc.uplinkPackets.Load(),
+		UplinkBytes:          tc.uplinkBytes.Load(),
+		TCPSessions:          tc.tcpSessions.Load(),
+		UDPSessions:          tc.udpSessions.Load(),
+		LastSessionTimestamp: tc.lastSessionTimestamp.Load(),
 	}
 }
 
 func (tc *trafficCollector) snapshotAndReset() Traffic {
 	return Traffic{
-		DownlinkPackets: tc.downlinkPackets.Swap(0),
-		DownlinkBytes:   tc.downlinkBytes.Swap(0),
-		UplinkPackets:   tc.uplinkPackets.Swap(0),
-		UplinkBytes:     tc.uplinkBytes.Swap(0),
-		TCPSessions:     tc.tcpSessions.Swap(0),
-		UDPSessions:     tc.udpSessions.Swap(0),
+		DownlinkPackets:      tc.downlinkPackets.Swap(0),
+		DownlinkBytes:        tc.downlinkBytes.Swap(0),
+		UplinkPackets:        tc.uplinkPackets.Swap(0),
+		UplinkBytes:          tc.uplinkBytes.Swap(0),
+		TCPSessions:          tc.tcpSessions.Swap(0),
+		UDPSessions:          tc.udpSessions.Swap(0),
+		LastSessionTimestamp: tc.lastSessionTimestamp.Swap(0),
 	}
 }
 
