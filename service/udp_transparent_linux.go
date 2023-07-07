@@ -582,7 +582,7 @@ main:
 		s.logger.WithField("burstBatchSize", burstBatchSize),
 	)
 
-	s.collector.CollectUDPSessionUplink("", packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionUplink("", "", packetsSent, payloadBytesSent)
 }
 
 // getQueuedPacket retrieves a queued packet from the pool.
@@ -814,7 +814,7 @@ func (s *UDPTransparentRelay) relayNatConnToTransparentConnSendmmsg(ctx context.
 		s.logger.WithField("burstBatchSize", burstBatchSize),
 	)
 
-	s.collector.CollectUDPSessionDownlink("", packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionDownlink("", "", packetsSent, payloadBytesSent)
 }
 
 // Stop implements the Relay Stop method.

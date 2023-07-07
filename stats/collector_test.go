@@ -2,31 +2,36 @@ package stats
 
 import "testing"
 
+const (
+	AlexAddress  = "127.0.0.1"
+	SteveAddress = "127.0.0.2"
+)
+
 func collect(t *testing.T, c Collector) {
 	t.Helper()
-	c.CollectTCPSession("Steve", 1024, 2048)
-	c.CollectUDPSessionUplink("Alex", 1, 3072)
-	c.CollectUDPSessionDownlink("Steve", 2, 4096)
-	c.CollectTCPSession("Alex", 5120, 6144)
-	c.CollectUDPSessionDownlink("Alex", 4, 7168)
-	c.CollectUDPSessionUplink("Steve", 8, 8192)
-	c.CollectTCPSession("Steve", 9216, 10240)
-	c.CollectUDPSessionDownlink("Alex", 16, 11264)
-	c.CollectUDPSessionDownlink("Steve", 32, 12288)
-	c.CollectUDPSessionDownlink("Alex", 64, 13312)
-	c.CollectUDPSessionUplink("Steve", 128, 14336)
-	c.CollectUDPSessionUplink("Alex", 256, 15360)
-	c.CollectUDPSessionUplink("Alex", 512, 16384)
-	c.CollectTCPSession("Steve", 17408, 18432)
-	c.CollectUDPSessionDownlink("Alex", 1024, 19456)
-	c.CollectUDPSessionUplink("Alex", 2048, 20480)
+	c.CollectTCPSession("Steve", SteveAddress, 1024, 2048)
+	c.CollectUDPSessionUplink("Alex", AlexAddress, 1, 3072)
+	c.CollectUDPSessionDownlink("Steve", SteveAddress, 2, 4096)
+	c.CollectTCPSession("Alex", AlexAddress, 5120, 6144)
+	c.CollectUDPSessionDownlink("Alex", AlexAddress, 4, 7168)
+	c.CollectUDPSessionUplink("Steve", "", 8, 8192)
+	c.CollectTCPSession("Steve", SteveAddress, 9216, 10240)
+	c.CollectUDPSessionDownlink("Alex", AlexAddress, 16, 11264)
+	c.CollectUDPSessionDownlink("Steve", SteveAddress, 32, 12288)
+	c.CollectUDPSessionDownlink("Alex", AlexAddress, 64, 13312)
+	c.CollectUDPSessionUplink("Steve", SteveAddress, 128, 14336)
+	c.CollectUDPSessionUplink("Alex", AlexAddress, 256, 15360)
+	c.CollectUDPSessionUplink("Alex", AlexAddress, 512, 16384)
+	c.CollectTCPSession("Steve", SteveAddress, 17408, 18432)
+	c.CollectUDPSessionDownlink("Alex", AlexAddress, 1024, 19456)
+	c.CollectUDPSessionUplink("Alex", AlexAddress, 2048, 20480)
 }
 
 func collectNoUsername(t *testing.T, c Collector) {
 	t.Helper()
-	c.CollectTCPSession("", 1024, 2048)
-	c.CollectUDPSessionDownlink("", 1, 3072)
-	c.CollectUDPSessionUplink("", 2, 4096)
+	c.CollectTCPSession("", "", 1024, 2048)
+	c.CollectUDPSessionDownlink("", "", 1, 3072)
+	c.CollectUDPSessionUplink("", "", 2, 4096)
 }
 
 func verify(t *testing.T, s Server) {
@@ -55,6 +60,7 @@ func verify(t *testing.T, s Server) {
 		TCPSessions:     1,
 		UDPSessions:     4,
 	}
+
 	if s.Traffic != expectedServerTraffic {
 		t.Errorf("expected server traffic %+v, got %+v", expectedServerTraffic, s.Traffic)
 	}
@@ -62,21 +68,26 @@ func verify(t *testing.T, s Server) {
 		t.Fatalf("expected 2 users, got %d", len(s.Users))
 	}
 	for _, u := range s.Users {
-		if u.Traffic.LastSessionTimestamp == 0 {
-			t.Errorf("%s: LastSessionTimestamp is not set", u.Name)
-		}
+		t.Logf("user: %v: %+v", u.Name, u)
 
-		// Reset it to zero for comparison.
-		u.Traffic.LastSessionTimestamp = 0
+		if u.Metadata.LastSessionTimestamp == 0 {
+			t.Errorf("expected non-zero last session timestamp for user %s", u.Name)
+		}
 
 		switch u.Name {
 		case "Steve":
 			if u.Traffic != expectedSteveTraffic {
 				t.Errorf("expected Steve traffic %+v, got %+v", expectedSteveTraffic, u.Traffic)
 			}
+			if u.Metadata.LastSessionClientAddress != SteveAddress {
+				t.Errorf("expected Steve address %v, got %v", SteveAddress, u.Metadata.LastSessionClientAddress)
+			}
 		case "Alex":
 			if u.Traffic != expectedAlexTraffic {
 				t.Errorf("expected Alex traffic %+v, got %+v", expectedAlexTraffic, u.Traffic)
+			}
+			if u.Metadata.LastSessionClientAddress != AlexAddress {
+				t.Errorf("expected Alex address %v, got %v", AlexAddress, u.Metadata.LastSessionClientAddress)
 			}
 		default:
 			t.Errorf("unexpected user %s", u.Name)
@@ -94,9 +105,6 @@ func verifyNoUsername(t *testing.T, s Server) {
 		TCPSessions:     1,
 		UDPSessions:     1,
 	}
-
-	// Reset it to zero for comparison.
-	s.Traffic.LastSessionTimestamp = 0
 
 	if s.Traffic != expectedServerTraffic {
 		t.Errorf("expected server traffic %+v, got %+v", expectedServerTraffic, s.Traffic)

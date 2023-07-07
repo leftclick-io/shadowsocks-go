@@ -630,7 +630,7 @@ func (s *UDPSessionRelay) relayServerConnToNatConnGeneric(ctx context.Context, u
 		s.logger.WithField("payloadBytesSent", payloadBytesSent),
 	)
 
-	s.collector.CollectUDPSessionUplink(uplink.username, packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionUplink(uplink.username, "", packetsSent, payloadBytesSent)
 }
 
 func (s *UDPSessionRelay) relayNatConnToServerConnGeneric(downlink sessionDownlinkGeneric) {
@@ -763,7 +763,7 @@ func (s *UDPSessionRelay) relayNatConnToServerConnGeneric(downlink sessionDownli
 		s.logger.WithField("payloadBytesSent", payloadBytesSent),
 	)
 
-	s.collector.CollectUDPSessionDownlink(downlink.username, packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionDownlink(downlink.username, clientAddrPort.Addr().String(), packetsSent, payloadBytesSent)
 }
 
 // getQueuedPacket retrieves a queued packet from the pool.

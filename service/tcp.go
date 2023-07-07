@@ -306,7 +306,7 @@ func (s *TCPRelay) handleConn(ctx context.Context, index int, lnc *tcpRelayListe
 	// Two-way relay.
 	nl2r, nr2l, err := zerocopy.TwoWayRelay(clientRW, remoteRW)
 	nl2r += int64(len(payload))
-	s.collector.CollectTCPSession(username, uint64(nr2l), uint64(nl2r))
+	s.collector.CollectTCPSession(username, clientAddrPort.Addr().String(), uint64(nr2l), uint64(nl2r))
 	if err != nil {
 		s.logger.Warn("Two-way relay failed",
 			s.logger.WithField("server", s.serverName),

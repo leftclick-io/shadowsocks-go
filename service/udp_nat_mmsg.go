@@ -596,7 +596,7 @@ main:
 		s.logger.WithField("burstBatchSize", burstBatchSize),
 	)
 
-	s.collector.CollectUDPSessionUplink("", packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionUplink("", uplink.clientAddrPort.Addr().String(), packetsSent, payloadBytesSent)
 }
 
 func (s *UDPNATRelay) relayNatConnToServerConnSendmmsg(downlink natDownlinkMmsg) {
@@ -780,5 +780,5 @@ func (s *UDPNATRelay) relayNatConnToServerConnSendmmsg(downlink natDownlinkMmsg)
 		s.logger.WithField("burstBatchSize", burstBatchSize),
 	)
 
-	s.collector.CollectUDPSessionDownlink("", packetsSent, payloadBytesSent)
+	s.collector.CollectUDPSessionDownlink("", downlink.clientAddrPort.Addr().String(), packetsSent, payloadBytesSent)
 }
